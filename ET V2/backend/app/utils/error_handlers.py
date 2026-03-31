@@ -1,32 +1,19 @@
-from fastapi import HTTPException
-from typing import Dict, Any, Optional
-import logging
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from starlette import status
 
-class AppError(HTTPException):
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None, status_code: int = 400):
-        super().__init__(status_code=status_code, detail={
-            "error": True,
-            "message": message,
-            "details": details or {}
-        })
-
-class OCRError(AppError):
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
-        super().__init__(message, details, 422)
-
-class ParserError(AppError):
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
-        super().__init__(message, details, 422)
-
-class DatabaseError(AppError):
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
-        super().__init__(message, details, 500)
-
-class FileUploadError(AppError):
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
-        super().__init__(message, details, 413)
-
-class DuplicateExpenseError(AppError):
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
-        super().__init__(message, details, 409)
+def add_exception_handlers(app: FastAPI):
+    @app.exception_handler(404)
+    async def not_found_handler(request: Request, exc):
+        return JSONResponse(
+            {"detail": "Endpoint not found. Check /docs"},
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+    
+    @app.exception_handler(500)
+    async def internal_error_handler(request: Request, exc):
+        return JSONResponse(
+            {"detail": "Internal server error"},
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 

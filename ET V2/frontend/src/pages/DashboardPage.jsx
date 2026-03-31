@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { RefreshCw, Receipt, DollarSign, TrendingUp, AlertTriangle } from 'lucide-react'
-import { expenseAPI } from '../api/API'
+import { expenseAPI } from '../api/API.js'
+import axios from 'axios'
+
 import './DashboardPage.css'
 
 function DashboardPage() {

@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 from typing import Dict, Any, Optional, Tuple
 from ..utils.logger import LoggerMixin
-from ..utils.error_handlers import ParserError
+# from ..utils.error_handlers import ParserError
 
 class ParserService(LoggerMixin):
     def __init__(self):
@@ -58,7 +58,7 @@ class ParserService(LoggerMixin):
 
         except Exception as e:
             self.logger.error(f"Parse failed: {e}")
-            raise ParserError(f"Parsing failed: {str(e)}")
+            raise Exception(f"Parsing failed: {str(e)}")
 
     def _extract_merchant(self, text: str) -> Optional[str]:
         # \"\"\"

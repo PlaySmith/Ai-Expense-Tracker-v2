@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Tuple, Optional
 import io
 from ..utils.logger import LoggerMixin
-from ..utils.error_handlers import OCRError
+# from ..utils.error_handlers import OCRError
 
 class OCRService(LoggerMixin):
     def __init__(self):
@@ -94,7 +94,7 @@ class OCRService(LoggerMixin):
             
         except Exception as e:
             self.logger.error(f"OCR Pipeline failed: {e}")
-            raise OCRError(f"OCR failed: {str(e)}")
+            raise ValueError(f"OCR failed: {str(e)}")
 
     def _ocr_region(self, pil_img: Image.Image, region_type: str) -> List[Tuple]:
         """Runs EasyOCR on a specific region using PNG buffer."""
@@ -136,10 +136,10 @@ class OCRService(LoggerMixin):
     def validate_image(self, image_path: str) -> bool:
         path = Path(image_path)
         if not path.exists():
-            raise OCRError(f"File not found: {image_path}")
+            raise FileNotFoundError(f"File not found: {image_path}")
         try:
             with Image.open(image_path) as img:
                 img.verify()
             return True
         except Exception as e:
-            raise OCRError(f"Invalid image format: {e}")
+            self.logger.error(f"Invalid image format: {e}"); raise ValueError(f"Invalid image format: {e}")

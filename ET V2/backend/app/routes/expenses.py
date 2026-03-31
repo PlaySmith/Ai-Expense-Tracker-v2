@@ -12,7 +12,7 @@ from ..services.expense_service import ExpenseService
 from ..schemas.expense_schema import (
     ExpenseResponse, ExpenseCreate, ExpenseListResponse, UploadResponse
 )
-from ..utils.error_handlers import FileUploadError
+# from ..utils.error_handlers import FileUploadError
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 
