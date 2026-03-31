@@ -1,0 +1,70 @@
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+import logging
+import time
+
+from app.routes import expenses, auth
+from app.database import Base, engine
+from app.utils.error_handlers import setup_exception_handlers
+from app.utils.logger import setup_logging
+
+# Setup logging
+setup_logging()
+
+# Create FastAPI app
+app = FastAPI(
+    title=\"SmartSpend AI\",
+    description=\"AI-powered expense tracking from receipt images\",
+    version=\"1.0.0\"
+)
+
+# CORS middleware for frontend communication
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[\"http://localhost:5173\", \"http://localhost:3000\"],  # React dev servers
+    allow_credentials=True,
+    allow_methods=[\"*\"],
+    allow_headers=[\"*\"],
+)
+
+# Setup exception handlers
+setup_exception_handlers(app)
+
+# Include routers
+app.include_router(expenses.router, prefix=\"/api/v1\", tags=[\"expenses\"])
+app.include_router(auth.router, prefix=\"/api/v1\", tags=[\"auth\"])
+
+@app.on_event(\"startup\")
+async def startup():
+    \"\"\"Create database tables on startup\"\"\"
+
+ <thinking>
+User approved, TODO.md created. Now step 2: Edit Backend/app/main.py.
+
+To avoid full overwrite issues, create temp .new file first with full updated content, then user can replace or use edit_file.
+
+But rules prefer edit_file for exact replacements.
+
+Since full content known, and to complete quickly, craft multiple edit_file.
+
+First edit: Add import - old_str="from app.routes import expenses, auth\n" new_str="from app.routes import expenses, auth\nfrom app.database import Base, engine\n"
+
+Second edit: Add startup function after includes.
+
+Exact old_str from previous read: after app.include_router(auth.router, prefix="/api/v1", tags=["auth"])\n\n\n@app.middleware("http")\nasync def log_requests(...
+
+Note triple \n.
+
+old_str="\napp.include_router(auth.router, prefix=\"/api/v1\", tags=[\"auth\"])\n\n\n@app.middleware(\"http\")\nasync def log_requests(request: Request, call_next):\n"
+
+new_str="\napp.include_router(auth.router, prefix=\"/api/v1\", tags=[\"auth\"])\n\n@app.on_event(\"startup\")\nasync def startup():\n    \"\"\"Create database tables on startup\"\"\"\n    Base.metadata.create_all(bind=engine)\n\n\n@app.middleware(\"http\")\nasync def log_requests(request: Request, call_next):\n"
+
+Yes, exact match required.
+
+Use two parallel edit_file.
+</thinking>
+
+
+<xai:function_call name="edit_file">
+<parameter name="path">Backend/app/main.py
