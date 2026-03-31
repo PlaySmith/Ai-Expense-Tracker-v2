@@ -9,6 +9,7 @@ from datetime import datetime
 
 from ..database import get_db
 from ..services.expense_service import ExpenseService
+from ..models.models import Expense
 from ..schemas.expense_schema import (
     ExpenseResponse, ExpenseCreate, ExpenseListResponse, UploadResponse
 )
@@ -66,7 +67,7 @@ async def health_check():
     return {"status": "healthy", "service": "expense-tracker-v2", "version": "2.0.0"}
 
 @router.post("/manual")
-async def create_manual(db: Session = Depends(get_db), expense: ExpenseCreate):
+async def create_manual(expense: ExpenseCreate, db: Session = Depends(get_db)):
     service = ExpenseService(db)
     # Simple manual create
     expense_manual = Expense(**expense.dict())
@@ -77,4 +78,3 @@ async def create_manual(db: Session = Depends(get_db), expense: ExpenseCreate):
     db.commit()
     db.refresh(expense_manual)
     return {"success": True, "expense": expense_manual}
-

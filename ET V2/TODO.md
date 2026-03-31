@@ -1,21 +1,22 @@
-# ET V2 - V1 UI Migration TODO
+# TODO: Fix lucide-react import error
 
-## Progress
-- [x] Backend stable (OCR/parser safe)
-- [ ] Copy V1 UI files
-- [ ] Backend /health + manual expense  
-- [ ] Frontend deps (react-dropzone, lucide-react)
-- [ ] npm install + vite restart
-- [ ] Test full V1 UI + V2 backend
+## Steps:
 
-## Steps
-1. Backend endpoints (/health, manual expense)
-2. Frontend src/api/API.js (V1)
-3. src/pages/UploadPage.jsx/css → overwrite V2
-4. src/pages/DashboardPage.jsx/css → Dashboard.jsx  
-5. src/App.jsx → V1 layout (no auth)
-6. src/index.css → V1 vars  
-7. package.json deps + npm i
+### 1. Clean frontend dependencies [✅ COMPLETED]
+   - node_modules and package-lock.json deleted & reinstalled via npm
+   - lucide-react confirmed present: node_modules/lucide-react/ (package.json, dist/, icons)
 
-**Next: Backend /health**
+### 2. Restart Vite dev server [⚡ NEXT ACTION]
+   - cd \"ET V2/frontend\"
+   - npm run dev
+   - This restarts Vite with clean node_modules; import error resolved
+
+### 3. Verify fix [TO DO]
+   - Load DashboardPage - icons (RefreshCw, Receipt, DollarSign, TrendingUp, AlertTriangle) render
+   - No more \"Failed to resolve import lucide-react\" errors
+
+**Progress: 1/3 complete** (core fix done; restart to test)
+
+---
+*Updated by BLACKBOXAI | 2024*"
 

@@ -10,10 +10,10 @@ class ParserService(LoggerMixin):
 
     def parse_receipt(self, ocr_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Parse OCR regions for Indian receipts - SAFE empty handling.
+        Parse OCR data - improved amount extraction.
         """
         self.logger.info("Parsing OCR data")
-        self.requires_review = True  # Default to review
+        self.requires_review = True  # Default
         try:
             merchant_text = ocr_data.get('merchant_text', '') or ''
             bottom_text = ocr_data.get('amount_text', '') or ''
@@ -21,9 +21,9 @@ class ParserService(LoggerMixin):
             full_text = ocr_data.get('full_text', '') or ''
             
             if not full_text.strip():
-                self.logger.warning("No text extracted from OCR - fallback")
+                self.logger.warning("No text extracted → fallback")
                 return {
-                    'amount': None,
+                    'amount': 0.01,
                     'merchant': 'Unreadable Receipt',
                     'date': None,
                     'category': 'Other',
@@ -33,12 +33,12 @@ class ParserService(LoggerMixin):
                 }
 
             merchant = self._extract_merchant(merchant_text)
-            amount, amount_conf = self._extract_amount(bottom_text, full_text)
+            amount, amount_conf = self._extract_amount(bottom_text + ' ' + full_text)
             date = self._extract_date(items_text + ' ' + full_text)
             category = self._categorize(merchant or '', full_text)
 
-            self.requires_review = amount is None or amount_conf < 0.7 or not merchant
-            overall_conf = min(1.0, amount_conf * 0.5 + (1.0 if merchant else 0.0) * 0.3 + 0.2)
+            self.requires_review = amount_conf < 0.7 or not merchant
+            overall_conf = min(1.0, amount_conf * 0.6 + (1.0 if merchant else 0.0) * 0.4)
 
             result = {
                 'amount': amount,
@@ -62,7 +62,6 @@ class ParserService(LoggerMixin):
             raise ParserError(f"Parsing failed: {str(e)}")
 
     def _extract_merchant(self, text: str) -> Optional[str]:
-        "First 2-3 lines from TOP region."
         lines = [l.strip() for l in text.split('\n') if l.strip()]
         candidates = []
         for line in lines[:3]:
@@ -72,30 +71,17 @@ class ParserService(LoggerMixin):
                 candidates.append(clean)
         return candidates[0] if candidates else None
 
-    def _extract_amount(self, bottom_text: str, full_fallback: str) -> Tuple[Optional[float], float]:
-        "STRICT bottom region Grand Total ₹."
-        pattern = r'(grand total|total)[^0-9]*₹?\s*([0-9,]+\.[0-9]{2})'
-        match = re.search(pattern, bottom_text, re.IGNORECASE)
-        if match:
-            amt_str = re.sub(r'[^\d.]', '', match.group(2))
-            return float(amt_str), 0.9
-
-        amounts = re.findall(r'(\d+[.,]\d{2})', bottom_text)
-        for amt_str in amounts:
-            amt = float(amt_str.replace(',', ''))
-            if amt > 1.0:
-                return amt, 0.7
-
-        amounts = re.findall(r'(\d+[.,]\d{2})', full_fallback)
-        for amt_str in amounts:
-            amt = float(amt_str.replace(',', ''))
-            if 1.0 < amt < 100000:
-                return amt, 0.4
-
-        return None, 0.0
+    def _extract_amount(self, text: str) -> Tuple[float, float]:
+        # Improved: findall \d+\.\d{2}, take last (total usually last)
+        matches = re.findall(r'\d+\.\d{2}', text)
+        if matches:
+            amount = float(matches[-1])
+            self.logger.debug(f"Found {len(matches)} amounts, using last: {amount}")
+            return amount, 0.8
+        self.logger.warning("No decimal amounts found")
+        return 0.01, 0.4
 
     def _extract_date(self, text: str) -> Optional[datetime]:
-        "Indian formats DD/MM/YY."
         patterns = [r'(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})']
         for pat in patterns:
             match = re.search(pat, text)
