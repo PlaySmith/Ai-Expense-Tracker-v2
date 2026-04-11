@@ -102,6 +102,24 @@ export const expenseAPI = {
     return response.data
   },
 
+  // Get single expense
+  getExpense: async (expenseId) => {
+    const response = await api.get(`/expenses/${expenseId}`)
+    return response.data
+  },
+
+  // Update expense
+  updateExpense: async (expenseId, data) => {
+    const response = await api.put(`/expenses/${expenseId}`, data)
+    return response.data
+  },
+
+  // Delete expense
+  deleteExpense: async (expenseId) => {
+    const response = await api.delete(`/expenses/${expenseId}`)
+    return response.data
+  },
+
   // Get stats
   getStats: async () => {
     const response = await api.get('/expenses/stats')

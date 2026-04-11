@@ -17,8 +17,10 @@ from ..utils.error_handlers import FileUploadError
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 
-UPLOAD_DIR = Path("uploads")
-UPLOAD_DIR.mkdir(exist_ok=True)
+# Ensure uploads directory exists (absolute path relative to backend directory)
+BACKEND_DIR = Path(__file__).parent.parent.parent
+UPLOAD_DIR = BACKEND_DIR / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".webp"}
 MAX_FILE_SIZE = 10 * 1024 * 1024
@@ -99,3 +101,67 @@ async def create_manual(
     db.commit()
     db.refresh(expense_manual)
     return {"success": True, "expense": expense_manual}
+
+
+@router.put("/{expense_id}")
+async def update_expense(
+    expense_id: int,
+    expense_data: ExpenseCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AuthService.get_current_user),
+):
+    """Update an existing expense (authorized users only)"""
+    expense = db.query(Expense).filter(
+        Expense.id == expense_id,
+        Expense.owner_id == current_user.id
+    ).first()
+    
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    
+    # Update fields
+    update_data = expense_data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(expense, field, value)
+    
+    db.commit()
+    db.refresh(expense)
+    return {"success": True, "expense": expense}
+
+
+@router.delete("/{expense_id}")
+async def delete_expense(
+    expense_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AuthService.get_current_user),
+):
+    """Delete an expense (authorized users only)"""
+    expense = db.query(Expense).filter(
+        Expense.id == expense_id,
+        Expense.owner_id == current_user.id
+    ).first()
+    
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    
+    db.delete(expense)
+    db.commit()
+    return {"success": True, "message": "Expense deleted"}
+
+
+@router.get("/{expense_id}")
+async def get_expense(
+    expense_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AuthService.get_current_user),
+):
+    """Get a single expense by ID"""
+    expense = db.query(Expense).filter(
+        Expense.id == expense_id,
+        Expense.owner_id == current_user.id
+    ).first()
+    
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    
+    return expense

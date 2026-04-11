@@ -3,6 +3,7 @@ from datetime import datetime, date, timedelta
 from typing import Dict, Any, Optional, Tuple, List
 from ..utils.logger import LoggerMixin
 from ..utils.error_handlers import ParserError
+from dateutil import parser as dateutil_parser  # ADDED: For flexible date parsing
 
 class ParserService(LoggerMixin):
     def __init__(self):
@@ -33,21 +34,30 @@ class ParserService(LoggerMixin):
                 }
 
             merchant = self._extract_merchant(merchant_text)
-            amount, amount_conf = self._extract_amount(bottom_text + ' ' + full_text)
+            amount, amount_conf = self._extract_amount_bottomup(full_text)  # Improved: bottom-up search
             combined_for_date = f"{merchant_text}\n{bottom_text}\n{items_text}\n{full_text}"
             date = self._extract_date(combined_for_date)
             category = self._categorize(merchant or '', full_text)
 
+            # IMPROVED: Less strict confidence weighting
+            # Only mark for review if BOTH amount is highly uncertain AND merchant is missing
+            # Single missing property shouldn't mark for review
+            amount_missing = amount_conf < 0.5
+            merchant_missing = not merchant or merchant == "Unreadable Receipt"
+            date_missing = date is None
+            
+            # Mark for review only if critical info is missing
             self.requires_review = (
-                amount_conf < 0.7 or not merchant or date is None
+                (amount_missing and merchant_missing) or  # Both missing = review needed
+                amount_conf < 0.3  # Amount very uncertain = review needed
             )
-            date_boost = 0.15 if date is not None else 0.0
-            overall_conf = min(
-                1.0,
-                amount_conf * 0.5
-                + (1.0 if merchant else 0.0) * 0.35
-                + date_boost,
-            )
+            
+            # Improved: More generous confidence scoring
+            merchant_score = 0.8 if merchant and merchant != "Unreadable Receipt" else 0.0
+            amount_score = amount_conf * 0.6  # Scale amount contribution down
+            date_score = 0.2 if date is not None else 0.1  # Still some credit for attempting date
+            
+            overall_conf = min(1.0, merchant_score + amount_score + date_score)
 
             result = {
                 'amount': amount,
@@ -89,6 +99,66 @@ class ParserService(LoggerMixin):
             return amount, 0.8
         self.logger.warning("No decimal amounts found")
         return 0.01, 0.4
+
+    def _extract_amount_bottomup(self, text: str) -> Tuple[float, float]:
+        """
+        IMPROVED: Bottom-up total search - Start from bottom of text.
+        Search for keywords like 'Grand Total', 'Total', 'Food Total', 'S.Tax', etc.
+        Ignore 'Round off' and 'Sub Total'.
+        Support multiple currencies and formats: ₹1000, $100, €50, 1000.00, 1,000.00
+        ALSO: Support integer amounts without decimals (e.g., ₹250, 300, 1000)
+        """
+        lines = text.split('\n')
+        
+        # Tax keywords to ignore (these are components, not totals)
+        tax_keywords = ['CGST', 'SGST', 'VAT', 'Tax', 'S.Tax', 'Service Tax', 'Round off', 'Sub Total', 'Subtotal']
+        
+        # Search from BOTTOM up (last lines first - where totals usually are)
+        for i in range(len(lines) - 1, -1, -1):
+            line = lines[i]
+            
+            # Skip empty lines and tax lines
+            if not line.strip() or any(tax in line for tax in tax_keywords):
+                continue
+            
+            # Look for total keywords (case-insensitive)
+            if any(keyword in line.lower() for keyword in ['grand total', 'total', 'food total', 'amount', 'payable', 'due']):
+                # Extract amount from this line - support both decimal and integer formats
+                # Regex matches: ₹1000.00, ₹250, $100.50, €50, 1000.00, 1,000.00, 250
+                amount_match = re.search(r'[₹$€]?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?|\d+\.\d{2}|\d+)', line)
+                if amount_match:
+                    amount_str = amount_match.group(1).replace(',', '')
+                    try:
+                        amount = float(amount_str)
+                        # Sanity check: receipt amounts are typically between ₹1 and ₹100,000
+                        if 0.5 < amount < 100000:
+                            self.logger.debug(f"Bottom-up found total: {amount} from line: {line}")
+                            return amount, 0.85  # Higher confidence for explicit total keyword
+                    except ValueError:
+                        continue
+        
+        # Fallback: Look for largest reasonable number if no explicit total found
+        # Match both decimal and integer formats
+        all_numbers = re.findall(r'(\d{1,3}(?:,\d{3})*(?:\.\d{2})?|\d+\.\d{2}|\d+)', text)
+        if all_numbers:
+            amounts = []
+            for num in all_numbers:
+                try:
+                    val = float(num.replace(',', ''))
+                    # Filter out unreasonably small numbers and GST codes
+                    # Accept amounts between ₹1 and ₹100,000
+                    if 0.5 < val < 100000:
+                        amounts.append(val)
+                except ValueError:
+                    continue
+            
+            if amounts:
+                amount = max(amounts)
+                self.logger.debug(f"No explicit total found, using largest reasonable number: {amount}")
+                return amount, 0.65  # Lower confidence for inferred amount
+        
+        self.logger.warning("No amount found in receipt")
+        return 0.01, 0.3
 
     def _normalize_two_digit_year(self, y: int) -> int:
         if y >= 100:
@@ -161,6 +231,62 @@ class ParserService(LoggerMixin):
         return scored[0][1]
 
     def _extract_date(self, text: str) -> Optional[datetime]:
+        """
+        IMPROVED: Extract date from receipt text.
+        Handles multiple formats:
+        - DD/MM/YY (05/01/23)
+        - DD-MM-YY (20-05-18)
+        - DD-MMM-YY (20-May-18)
+        - YYYY-MM-DD (2023-05-01)
+        - DD Mon YYYY (20 May 2023)
+        
+        Enhanced logic:
+        - Search from top (headers have dates first)
+        - Use dateutil for flexible parsing
+        - Validate date is reasonable (not in future, not before 1990)
+        """
+        raw = text or ""
+        if not raw.strip():
+            return None
+
+        # Get today's date for validation
+        today = date.today()
+        max_future = today + timedelta(days=2)
+        min_past = date(1990, 1, 1)
+
+        # Extract potential date strings (flexible regex)
+        # Match patterns like: 05/01/23, 20-May-18, 05-01-2023, etc.
+        date_patterns = [
+            r'\b(\d{1,2}[-/]\d{1,2}[-/]\d{2,4})\b',  # Numeric dates
+            r'\b(\d{1,2}[-/]\w+[-/]\d{2,4})\b',  # With month name like 20-May-18
+            r'\b(\w+[-/]\d{1,2}[-/]\d{2,4})\b',  # Month first like May-20-2018
+        ]
+
+        candidates = []
+        for pattern in date_patterns:
+            for match in re.finditer(pattern, raw, re.IGNORECASE):
+                date_str = match.group(1)
+                try:
+                    # Use dateutil for intelligent parsing (handles DD/MM/YY, DD-Mon-YY, etc.)
+                    parsed_date = dateutil_parser.parse(date_str, dayfirst=True)  # Prefer DD/MM/YY
+                    
+                    # Validate date is reasonable
+                    if min_past <= parsed_date.date() <= max_future:
+                        bonus = self._date_keyword_bonus(raw, match.start())
+                        candidates.append((bonus, parsed_date.date()))
+                        self.logger.debug(f"Found date: {parsed_date.date()} from '{date_str}'")
+                except (ValueError, TypeError):
+                    continue  # Skip invalid dates
+
+        # Return best date (with highest keyword bonus, then most recent)
+        if candidates:
+            candidates.sort(key=lambda x: (-x[0], -x[1].toordinal()))  # Sort by bonus desc, then recent
+            best_date = candidates[0][1]
+            self.logger.debug(f"Selected date: {best_date}")
+            return datetime.combine(best_date, datetime.min.time())
+
+        self.logger.warning("No valid date found in receipt")
+        return None
         raw = text or ""
         if not raw.strip():
             return None

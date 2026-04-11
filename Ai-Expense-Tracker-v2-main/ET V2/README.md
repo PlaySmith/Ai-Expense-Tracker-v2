@@ -22,6 +22,10 @@ ET V2/
 cd /d "D:\Ai Expense Tracker\ET V2"
 start.bat
 ```
+✅ Launches backend (port 8000) and frontend (port 3001) in separate terminals
+✅ Portable - works on any drive letter
+✅ Better error messages if something fails
+
 **Linux/Mac/WSL:**
 ```bash
 cd "D:/Ai Expense Tracker/ET V2"
@@ -29,6 +33,14 @@ chmod +x start.sh && ./start.sh
 ```
 
 **Auto-opens terminals → Backend:8000 + Frontend:3001**
+
+### Having Issues?
+If startup fails, run the diagnostic tool:
+```cmd
+cd ET V2\scripts
+diagnose.bat
+```
+This checks if Python, Node.js, and required ports are available.
 
 ## URLs
 - **UI**: http://localhost:3001 (drag-drop)
