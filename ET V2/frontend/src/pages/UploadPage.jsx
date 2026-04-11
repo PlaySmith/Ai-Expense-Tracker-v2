@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Upload, FileText, CheckCircle, AlertCircle, Loader2, Camera, LogIn } from 'lucide-react'
+import { Upload, FileText, CheckCircle, AlertCircle, Loader2, Camera } from 'lucide-react'
 import { expenseAPI } from '../api/API'
 import './UploadPage.css'
 
-function UploadPage() {
+function UploadPage({ onUploadSuccess }) {
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(null)
   const [uploading, setUploading] = useState(false)
@@ -46,8 +46,11 @@ function UploadPage() {
       
       setResult(data)
       
-      // Clear file after successful upload
+      // Clear file after successful upload + notify parent
       if (data.success) {
+        if (onUploadSuccess) {
+          onUploadSuccess()
+        }
         setTimeout(() => {
           setFile(null)
           setPreview(null)

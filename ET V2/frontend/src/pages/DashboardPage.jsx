@@ -1,33 +1,66 @@
-import React, { useState, useEffect } from 'react'
-import { RefreshCw, Receipt, DollarSign, TrendingUp, AlertTriangle } from 'lucide-react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { RefreshCw, Receipt, DollarSign, TrendingUp, BarChart3, AlertTriangle, AlertCircle } from 'lucide-react'
 import { expenseAPI } from '../api/API'
+import SummaryCard from '../components/SummaryCard'
+import ExpenseCard from '../components/ExpenseCard'
+import CategoryPie from '../components/CategoryPie'
 import './DashboardPage.css'
 
-function DashboardPage() {
+function DashboardPage({ refreshKey = 0 }) {
   const [stats, setStats] = useState(null)
   const [expenses, setExpenses] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [refreshing, setRefreshing] = useState(false)
+
+  const computePieData = (expenses) => {
+    const categoryTotals = {}
+    expenses.forEach(exp => {
+      const cat = exp.category || 'Uncategorized'
+      categoryTotals[cat] = (categoryTotals[cat] || 0) + exp.amount
+    })
+    return Object.entries(categoryTotals).map(([name, value]) => ({ name, value }))
+  }
+
+  const computeSummary = (expenses, stats) => {
+    if (!expenses.length) return {}
+    const totalTxns = expenses.length
+    const highest = Math.max(...expenses.map(e => e.amount))
+    const categoryCounts = {}
+    expenses.forEach(exp => {
+      const cat = exp.category || 'Uncategorized'
+      categoryCounts[cat] = (categoryCounts[cat] || 0) + 1
+    })
+    const mostUsed = Object.entries(categoryCounts).reduce((a, b) => (b[1] > a[1] ? b : a), ['', 0])[0]
+    return { totalTxns, highestExpense: highest.toFixed(0), mostUsedCategory: mostUsed }
+  }
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [refreshKey])
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       const [statsRes, expensesRes] = await Promise.all([
         expenseAPI.getStats(),
-        expenseAPI.getExpenses({ limit: 50 })
+        expenseAPI.getExpenses({ limit: 50 }),
       ])
+      const sortedExpenses = (expensesRes.expenses || []).sort((a, b) => {
+        const ta = a.date ? new Date(a.date).getTime() : 0
+        const tb = b.date ? new Date(b.date).getTime() : 0
+        return tb - ta
+      })
       setStats(statsRes)
-      setExpenses(expensesRes.expenses || [])
-    } catch (error) {
-      console.error('Dashboard load error:', error)
+      setExpenses(sortedExpenses)
+    } catch (err) {
+      console.error('Dashboard load error:', err)
+      setError(err.message || 'Failed to load data')
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   const handleRefresh = async () => {
     setRefreshing(true)
@@ -35,126 +68,109 @@ function DashboardPage() {
     setRefreshing(false)
   }
 
-  if (loading) {
+  if (error) {
     return (
-      <div className="loading-container">
-        <RefreshCw className="spinner-large" size={48} />
-        <p>Loading dashboard...</p>
+      <div className="dashboard-page">
+        <div className="page-header">
+          <h2>Dashboard</h2>
+          <button onClick={handleRefresh} className="btn btn-secondary refresh-btn">
+            <RefreshCw size={18} />
+            Try Again
+          </button>
+        </div>
+        <div className="alert alert-error" style={{maxWidth: '500px', margin: '0 auto'}}>
+          <AlertCircle size={24} />
+          <span>{error}</span>
+        </div>
       </div>
     )
   }
 
+  if (loading) {
+    return (
+      <div className="dashboard-page">
+        <div className="page-header">
+          <h2>Dashboard</h2>
+          <div>Loading...</div>
+        </div>
+        <div className="skeleton-stats">
+          <div className="skeleton skeleton-card"></div>
+          <div className="skeleton skeleton-card"></div>
+          <div className="skeleton skeleton-card"></div>
+          <div className="skeleton skeleton-card"></div>
+        </div>
+        <div className="skeleton-expenses">
+          <div className="skeleton skeleton-expense"></div>
+          <div className="skeleton skeleton-expense"></div>
+          <div className="skeleton skeleton-expense"></div>
+        </div>
+      </div>
+    )
+  }
+
+  const pieData = computePieData(expenses)
+  const summary = computeSummary(expenses, stats)
+
   return (
-    <div className="dashboard-page">
+    <div className="dashboard-container">
       <div className="page-header">
         <h2>Dashboard</h2>
-        <button onClick={handleRefresh} disabled={refreshing} className="btn btn-secondary refresh-btn">
-          <RefreshCw size={18} className={refreshing ? 'spin' : ''} />
-          Refresh
-        </button>
       </div>
 
-      {/* Stats Grid */}
-      {stats && (
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon total">
-              <Receipt size={24} />
-            </div>
-            <div className="stat-info">
-              <div className="stat-label">Total Receipts</div>
-              <div className="stat-value">{stats.total_count || 0}</div>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon count">
-              <DollarSign size={24} />
-            </div>
-            <div className="stat-info">
-              <div className="stat-label">Total Spent</div>
-              <div className="stat-value">₹{(stats.total_amount || 0).toLocaleString()}</div>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon average">
-              <TrendingUp size={24} />
-            </div>
-            <div className="stat-info">
-              <div className="stat-label">Average Receipt</div>
-              <div className="stat-value">₹{stats.average_amount ? stats.average_amount.toFixed(0) : '0'}</div>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon review">
-              <AlertTriangle size={24} />
-            </div>
-            <div className="stat-info">
-              <div className="stat-label">Needs Review</div>
-              <div className="stat-value review">{stats.review_count || 0}</div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Summary Cards */}
+      <div className="stats-grid">
+        <SummaryCard 
+          icon={Receipt} 
+          label="Total Transactions" 
+          value={summary.totalTxns || stats?.total_count || 0} 
+          color="blue" 
+        />
+        <SummaryCard 
+          icon={DollarSign} 
+          label="Total Spent" 
+          value={`₹${(stats?.total_amount || 0).toLocaleString()}`} 
+          color="green" 
+        />
+        <SummaryCard 
+          icon={TrendingUp} 
+          label="Highest Expense" 
+          value={`₹${summary.highestExpense || 0}`} 
+          color="orange" 
+        />
+        <SummaryCard 
+          icon={BarChart3} 
+          label="Top Category" 
+          value={summary.mostUsedCategory || 'N/A'} 
+          color="purple" 
+        />
+      </div>
 
-      {/* Recent Expenses */}
-      <div className="category-card">
-        <div className="card-header">
-          <h4>Recent Receipts</h4>
+      {/* Main Grid: Pie + Expenses */}
+      <div className="main-grid">
+        {/* Category Pie Chart */}
+        <CategoryPie data={pieData} />
+
+        {/* Recent Expenses */}
+        <div className="expenses-section">
+          <h4>Recent Expenses ({expenses.length})</h4>
+          {expenses.length === 0 ? (
+            <div className="empty-state">
+              <Receipt className="empty-icon" size={64} />
+              <h4>No expenses yet</h4>
+              <p>Upload your first receipt using the Upload tab to get started</p>
+            </div>
+          ) : (
+            <div className="expenses-grid">
+              {expenses.slice(0, 10).map((expense) => (
+                <ExpenseCard key={expense.id} expense={expense} />
+              ))}
+            </div>
+          )}
         </div>
-        {expenses.length === 0 ? (
-          <div className="empty-state">
-            <Receipt className="empty-icon" size={64} />
-            <h4>No receipts yet</h4>
-            <p>Upload your first receipt to get started</p>
-          </div>
-        ) : (
-          <div className="table-container">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Merchant</th>
-                  <th>Amount</th>
-                  <th>Confidence</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {expenses.slice(0, 10).map((expense) => (
-                  <tr key={expense.id}>
-                    <td className="merchant-cell">
-                      <span className="merchant-name">{expense.merchant}</span>
-                      {expense.ocr_confidence < 0.8 && (
-                        <span className="low-confidence-badge" title="Low confidence">
-                          !
-                        </span>
-                      )}
-                    </td>
-                    <td className="amount-cell">
-                      ₹{expense.amount.toFixed(2)}
-                    </td>
-                    <td>
-                      <div className="confidence-bar small">
-                        <div 
-                          className="confidence-fill" 
-                          style={{ width: `${expense.ocr_confidence * 100}%` }}
-                        />
-                        <span>{(expense.ocr_confidence * 100).toFixed(0)}%</span>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`badge ${expense.requires_review ? 'badge-warning' : 'badge-success'}`}>
-                        {expense.requires_review ? 'Review' : 'OK'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
     </div>
   )
+
 }
 
 export default DashboardPage

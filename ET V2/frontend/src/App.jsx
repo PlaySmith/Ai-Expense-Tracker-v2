@@ -1,53 +1,81 @@
 import React, { useState } from 'react'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import UploadPage from './pages/UploadPage'
 import DashboardPage from './pages/DashboardPage'
+import ProfilePage from './pages/ProfilePage'
+import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
+import ProtectedRoute from './components/ProtectedRoute.jsx'
+import { useAuth } from './context/AuthContext.jsx'
 import './App.css'
 
-function App() {
-  const [currentPage, setCurrentPage] = useState('upload') // 'upload' | 'dashboard'
+function MainShell() {
+  const [currentPage, setCurrentPage] = useState('upload')
+  const [refreshKey, setRefreshKey] = useState(0)
+  const { user, logout } = useAuth()
+
+  const handleUploadSuccess = () => {
+    setRefreshKey((prev) => prev + 1)
+  }
 
   return (
     <div className="app">
-      {/* Header */}
-      <header className="header">
-        <div className="container header-content">
-          <div className="logo">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14,2 14,8 20,8"/>
-              <line x1="12" y1="18" x2="12.01" y2="18"/>
-              <path d="M16,16H8a1,1 0 0 1-1-1V11a1,1 0 0 1 1-1H16a1,1 0 0 1 1 1v4A1,1 0 0 1 16 16Z"/>
-            </svg>
-            <h1>SmartSpend AI V2</h1>
-          </div>
-
-          {/* Navigation */}
-          <nav className="nav-desktop">
-            <button 
-              className={`nav-link ${currentPage === 'upload' ? 'active' : ''}`} 
-              onClick={() => setCurrentPage('upload')}
-            >
-              📤 Upload
-            </button>
-            <button 
-              className={`nav-link ${currentPage === 'dashboard' ? 'active' : ''}`}
-              onClick={() => setCurrentPage('dashboard')}
-            >
-              📊
-              Dashboard
-            </button>
-          </nav>
+      <header className="navbar">
+        <div className="nav-left">
+          <h1 className="logo">SmartSpend AI V2</h1>
+        </div>
+        <div className="nav-center">
+          <button
+            type="button"
+            className="nav-btn"
+            onClick={() => setCurrentPage('upload')}
+          >
+            Upload
+          </button>
+          <button
+            type="button"
+            className="nav-btn"
+            onClick={() => setCurrentPage('dashboard')}
+          >
+            Dashboard
+          </button>
+        </div>
+        <div className="nav-right nav-user-actions">
+          <button
+            type="button"
+            className="nav-profile-name"
+            title="Open profile"
+            onClick={() => setCurrentPage('profile')}
+          >
+            {user?.full_name?.trim() || user?.email || 'Account'}
+          </button>
+          <button
+            type="button"
+            className="refresh-btn"
+            onClick={() => setRefreshKey((prev) => prev + 1)}
+          >
+            Refresh
+          </button>
+          <button type="button" className="logout-btn" onClick={logout}>
+            Log out
+          </button>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="main">
         <div className="container">
-          {currentPage === 'upload' ? <UploadPage /> : <DashboardPage />}
+          {currentPage === 'upload' ? (
+            <UploadPage onUploadSuccess={handleUploadSuccess} />
+          ) : currentPage === 'profile' ? (
+            <ProfilePage
+              onBack={() => setCurrentPage('upload')}
+            />
+          ) : (
+            <DashboardPage refreshKey={refreshKey} />
+          )}
         </div>
       </main>
 
-      {/* Footer */}
       <footer className="footer">
         <div className="container">
           <p>&copy; 2026 SmartSpend AI V2. FastAPI + React + EasyOCR.</p>
@@ -57,4 +85,23 @@ function App() {
   )
 }
 
-export default App
+export default function App() {
+  return (
+    <BrowserRouter
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route
+          path="/*"
+          element={
+            <ProtectedRoute>
+              <MainShell />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </BrowserRouter>
+  )
+}

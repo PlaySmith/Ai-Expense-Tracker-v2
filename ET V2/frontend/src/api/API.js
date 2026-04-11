@@ -9,6 +9,23 @@ const api = axios.create({
   }
 })
 
+// Attach JWT on every request (avoids losing Authorization after multipart / header merges)
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  // Default instance sets Content-Type: application/json — breaks FormData (no boundary) if left on
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    if (config.headers?.delete) {
+      config.headers.delete('Content-Type')
+    } else {
+      delete config.headers['Content-Type']
+    }
+  }
+  return config
+})
+
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
@@ -31,8 +48,13 @@ api.interceptors.response.use(
     if (error.response) {
       const { status, data } = error.response
       console.error(`API Error ${status}:`, data)
-      
-      const errorMessage = data?.message || data?.detail || data?.error || `Server error: ${status}`
+
+      let detailMsg = data?.detail
+      if (Array.isArray(detailMsg)) {
+        detailMsg = detailMsg.map((x) => x.msg || JSON.stringify(x)).join(' ')
+      }
+      const errorMessage =
+        data?.message || detailMsg || data?.error || `Server error: ${status}`
       const errorDetails = data?.details || data?.warnings || {}
       
       const enhancedError = new Error(errorMessage)
@@ -61,10 +83,8 @@ export const expenseAPI = {
     const formData = new FormData()
     formData.append('file', file)
     
+    // Do not set Content-Type — browser/axios adds multipart boundary; manual type can break auth + parsing
     const response = await api.post('/expenses/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      },
       onUploadProgress: (progressEvent) => {
         if (onProgress && progressEvent.total) {
           const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total)
@@ -76,9 +96,9 @@ export const expenseAPI = {
     return response.data
   },
 
-  // Get expenses
+  // Trailing slash required: GET /expenses 307→/expenses/ drops Authorization on redirect (401)
   getExpenses: async (params = {}) => {
-    const response = await api.get('/expenses', { params })
+    const response = await api.get('/expenses/', { params })
     return response.data
   },
 

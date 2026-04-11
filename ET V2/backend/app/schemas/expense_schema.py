@@ -21,6 +21,7 @@ class ExpenseUpdate(ExpenseBase):
 
 class ExpenseResponse(ExpenseBase):
     id: int
+    date: Optional[datetime] = None
     ocr_confidence: Optional[float]
     requires_review: bool
     extracted_raw: Optional[str]
