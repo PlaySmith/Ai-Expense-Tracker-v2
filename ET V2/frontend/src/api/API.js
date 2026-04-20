@@ -102,6 +102,24 @@ export const expenseAPI = {
     return response.data
   },
 
+  // Get single expense
+  getExpense: async (expenseId) => {
+    const response = await api.get(`/expenses/${expenseId}`)
+    return response.data
+  },
+
+  // Update expense
+  updateExpense: async (expenseId, data) => {
+    const response = await api.put(`/expenses/${expenseId}`, data)
+    return response.data
+  },
+
+  // Delete expense
+  deleteExpense: async (expenseId) => {
+    const response = await api.delete(`/expenses/${expenseId}`)
+    return response.data
+  },
+
   // Get stats
   getStats: async () => {
     const response = await api.get('/expenses/stats')
@@ -111,6 +129,63 @@ export const expenseAPI = {
   // Health check
   checkHealth: async () => {
     const response = await api.get('/expenses/health')
+    return response.data
+  }
+}
+
+// Budget API
+export const budgetAPI = {
+  // Create budget
+  createBudget: async (data) => {
+    const response = await api.post('/budgets/', data)
+    return response.data
+  },
+
+  // Get all budgets with progress
+  getBudgets: async () => {
+    const response = await api.get('/budgets/')
+    return response.data
+  },
+
+  // Get single budget
+  getBudget: async (budgetId) => {
+    const response = await api.get(`/budgets/${budgetId}`)
+    return response.data
+  },
+
+  // Update budget
+  updateBudget: async (budgetId, data) => {
+    const response = await api.put(`/budgets/${budgetId}`, data)
+    return response.data
+  },
+
+  // Delete budget
+  deleteBudget: async (budgetId) => {
+    const response = await api.delete(`/budgets/${budgetId}`)
+    return response.data
+  },
+
+  // Get budget status
+  getBudgetStatus: async (budgetId) => {
+    const response = await api.get(`/budgets/${budgetId}/status`)
+    return response.data
+  }
+}
+
+// Auth API
+export const authAPI = {
+  // Update user profile
+  updateProfile: async (data) => {
+    const response = await api.put('/auth/profile', data)
+    return response.data
+  },
+
+  // Upload profile avatar
+  uploadAvatar: async (file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    const response = await api.post('/auth/profile/avatar', formData)
     return response.data
   }
 }

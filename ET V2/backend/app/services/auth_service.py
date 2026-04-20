@@ -72,3 +72,20 @@ class AuthService(LoggerMixin):
         if user is None:
             raise credentials_exception
         return user
+
+    def update_user_profile(self, user: User, full_name: Optional[str] = None, phone: Optional[str] = None) -> User:
+        if full_name is not None:
+            user.full_name = full_name.strip()
+        if phone is not None:
+            user.phone = phone.strip() or None
+        self.db.commit()
+        self.db.refresh(user)
+        self.logger.info("Updated user profile: %s", user.email)
+        return user
+
+    def update_user_avatar(self, user: User, image_path: str) -> User:
+        user.profile_image_path = image_path
+        self.db.commit()
+        self.db.refresh(user)
+        self.logger.info("Updated user avatar: %s", user.email)
+        return user

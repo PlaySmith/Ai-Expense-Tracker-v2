@@ -1,9 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from .database import engine, Base, migrate_sqlite_users_columns
-from .routes import expenses_router, auth_router
+from .routes import expenses_router, auth_router, budgets_router
 from .utils.logger import logger
 
 # Create tables (dev only)
@@ -38,6 +40,12 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(expenses_router)
+app.include_router(budgets_router)
+
+# Serve static files (uploads directory)
+uploads_path = Path("uploads")
+uploads_path.mkdir(exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 @app.get("/")
 def root():

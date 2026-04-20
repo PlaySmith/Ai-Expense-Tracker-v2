@@ -31,6 +31,8 @@ def migrate_sqlite_users_columns() -> None:
                 conn.execute(text("ALTER TABLE users ADD COLUMN full_name VARCHAR(255)"))
             if "phone" not in names:
                 conn.execute(text("ALTER TABLE users ADD COLUMN phone VARCHAR(50)"))
+            if "profile_image_path" not in names:
+                conn.execute(text("ALTER TABLE users ADD COLUMN profile_image_path VARCHAR(500)"))
     except Exception:
         return
 

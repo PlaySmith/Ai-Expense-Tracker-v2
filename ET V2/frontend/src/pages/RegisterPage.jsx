@@ -16,6 +16,8 @@ function formatError(err) {
 export default function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [fullName, setFullName] = useState('')
+  const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const { register } = useAuth()
@@ -51,6 +53,23 @@ export default function RegisterPage() {
         {error && <div className="error-message">{error}</div>}
 
         <form onSubmit={handleSubmit} className="upload-form">
+          <div className="form-group">
+            <label htmlFor="reg-fullname">
+              <User size={20} />
+              Full Name
+            </label>
+            <input
+              id="reg-fullname"
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Your full name"
+              required
+              className="form-input"
+              autoComplete="name"
+            />
+          </div>
+
           <div className="form-group">
             <label htmlFor="reg-email">
               <Mail size={20} />

@@ -30,3 +30,7 @@ class DuplicateExpenseError(AppError):
     def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
         super().__init__(message, details, 409)
 
+class BudgetError(AppError):
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, details, 400)
+

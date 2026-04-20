@@ -5,9 +5,13 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).parent.parent.parent
 
+# Create logs directory first (before creating file handler)
+logs_dir = BASE_DIR / "logs"
+logs_dir.mkdir(parents=True, exist_ok=True)
+
 # File handler
 file_handler = RotatingFileHandler(
-    BASE_DIR / "logs/app.log",
+    logs_dir / "app.log",
     maxBytes=10*1024*1024,  # 10MB
     backupCount=5
 )
@@ -37,16 +41,5 @@ logging.basicConfig(handlers=[console_handler], level=logging.INFO)
 logger = logging.getLogger("ET_V2")
 logger.addHandler(file_handler)
 logger.setLevel(logging.INFO)
-
-# Ensure logs dir
-logs_dir = BASE_DIR / "logs"
-logs_dir.mkdir(exist_ok=True)
-file_handler = RotatingFileHandler(
-    logs_dir / "app.log",
-    maxBytes=10*1024*1024,  # 10MB
-    backupCount=5
-)
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
 
 

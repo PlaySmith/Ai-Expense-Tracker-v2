@@ -20,6 +20,7 @@ class UserResponse(BaseModel):
     email: EmailStr
     full_name: Optional[str] = None
     phone: Optional[str] = None
+    profile_image_path: Optional[str] = None
     created_at: Optional[datetime] = None
 
     class Config:
@@ -29,3 +30,8 @@ class UserResponse(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class UserProfileUpdate(BaseModel):
+    full_name: Optional[str] = Field(None, max_length=255)
+    phone: Optional[str] = Field(None, max_length=50)

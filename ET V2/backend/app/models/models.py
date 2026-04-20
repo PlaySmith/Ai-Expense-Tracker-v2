@@ -11,10 +11,12 @@ class User(Base):
     email = Column(String(255), unique=True, index=True, nullable=False)
     full_name = Column(String(255), nullable=True)
     phone = Column(String(50), nullable=True)
+    profile_image_path = Column(String(500), nullable=True)
     hashed_password = Column(String(255), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     expenses = relationship("Expense", back_populates="owner")
+    budgets = relationship("Budget", back_populates="owner")
 
 
 class Expense(Base):
@@ -36,4 +38,19 @@ class Expense(Base):
 
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     owner = relationship("User", back_populates="expenses")
+
+
+class Budget(Base):
+    __tablename__ = "budgets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    category = Column(String(100), nullable=False)
+    budget_amount = Column(Float, nullable=False)  # e.g., 5000.00
+    period = Column(String(20), nullable=False)  # "monthly" or "yearly"
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    owner = relationship("User", back_populates="budgets")
 

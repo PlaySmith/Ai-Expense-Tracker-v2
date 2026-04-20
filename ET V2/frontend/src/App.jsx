@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import UploadPage from './pages/UploadPage'
 import DashboardPage from './pages/DashboardPage'
+import BudgetPage from './pages/BudgetPage'
 import ProfilePage from './pages/ProfilePage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
@@ -39,6 +40,13 @@ function MainShell() {
           >
             Dashboard
           </button>
+          <button
+            type="button"
+            className="nav-btn"
+            onClick={() => setCurrentPage('budget')}
+          >
+            Budget
+          </button>
         </div>
         <div className="nav-right nav-user-actions">
           <button
@@ -70,6 +78,8 @@ function MainShell() {
             <ProfilePage
               onBack={() => setCurrentPage('upload')}
             />
+          ) : currentPage === 'budget' ? (
+            <BudgetPage />
           ) : (
             <DashboardPage refreshKey={refreshKey} />
           )}
