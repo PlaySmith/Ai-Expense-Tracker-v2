@@ -61,9 +61,9 @@ class OCRService(LoggerMixin):
             raise OCRError(f"OCR processing failed: {str(e)}")
 
     def _ocr_region(self, pil_img: Image.Image, region_type: str) -> list:
-        \"\"\"
+        """
         Run EasyOCR on PIL crop.
-        \"\"\"
+        """
         img_bytes = io.BytesIO()
         pil_img.convert('RGB').save(img_bytes, format='JPEG')
         img_bytes = img_bytes.getvalue()
